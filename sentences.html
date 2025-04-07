@@ -4,125 +4,137 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>🎤 Sentence Speaker</title>
-  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .highlight {
-      background-color: rgba(99, 102, 241, 0.15);
-      border-left: 4px solid #6366f1;
-      padding-left: 1rem;
+      background: linear-gradient(to right, #6366f1 0%, #8b5cf6 100%);
+      color: white;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
     }
-    .speak-btn {
-      transition: all 0.2s ease;
+    .scroll-container::-webkit-scrollbar {
+      width: 8px;
     }
-    .speak-btn:hover {
-      transform: scale(1.05);
+    .scroll-container::-webkit-scrollbar-thumb {
+      background: #a5b4fc;
+      border-radius: 4px;
     }
   </style>
 </head>
-<body class="bg-gray-100 font-sans min-h-screen">
+<body class="bg-gradient-to-tr from-gray-100 to-indigo-50 dark:from-gray-900 dark:to-gray-800 min-h-screen">
 
-<div id="app" class="max-w-3xl mx-auto py-10 px-4">
-  <div class="bg-white shadow-xl rounded-lg p-6">
-    <h1 class="text-3xl font-bold text-indigo-600 mb-4 text-center">📖 Sentence Speaker</h1>
-    <p class="text-gray-600 mb-6 text-center">Auto-scroll and speak sentences from JSON</p>
+  <div id="app" class="max-w-4xl mx-auto py-10 px-4">
+    <div class="bg-white dark:bg-gray-900 shadow-2xl rounded-xl p-8">
+      <h1 class="text-4xl font-bold text-indigo-600 dark:text-indigo-300 text-center mb-2">🎧 Sentence Speaker</h1>
+      <p class="text-gray-600 dark:text-gray-300 text-center mb-6">Reads one-by-one with auto-highlight and scroll</p>
 
-    <div class="flex items-center justify-center mb-4 gap-4 flex-wrap">
-      <button @click="togglePlay" class="speak-btn bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700">
-        <span v-if="!isPlaying">▶️ Start</span>
-        <span v-else>⏸️ Pause</span>
-      </button>
-      <div class="flex items-center gap-2">
-        <button @click="slower" class="text-indigo-600 font-bold text-lg">➖</button>
-        <span class="text-gray-700 font-medium">{{ speed.toFixed(1) }}s</span>
-        <button @click="faster" class="text-indigo-600 font-bold text-lg">➕</button>
+      <div class="flex justify-center items-center gap-6 mb-6 flex-wrap">
+        <button @click="togglePlay" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-full transition-all font-semibold">
+          <span v-if="!isPlaying">▶️ Start</span>
+          <span v-else>⏸️ Pause</span>
+        </button>
+        <div class="flex items-center gap-2 text-gray-800 dark:text-white">
+          <button @click="slower" class="text-xl font-bold px-2">➖</button>
+          <span class="font-semibold">{{ speed.toFixed(1) }}s</span>
+          <button @click="faster" class="text-xl font-bold px-2">➕</button>
+        </div>
       </div>
-    </div>
 
-    <div class="h-64 overflow-y-auto border border-gray-200 rounded-md p-4 bg-gray-50" ref="scrollArea">
-      <div v-for="(sentence, index) in sentences" :key="index"
-           :class="{'highlight': currentIndex === index}"
-           class="text-lg mb-2">
-        {{ sentence }}
+      <div class="scroll-container h-80 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800" ref="scrollArea">
+        <div v-for="(sentence, index) in sentences" :key="index"
+             :class="{'highlight': currentIndex === index}"
+             class="text-lg text-gray-800 dark:text-gray-100 mb-3 leading-relaxed transition-all duration-300">
+          {{ sentence }}
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  new Vue({
-    el: '#app',
-    data: {
-      sentences: [],
-      currentIndex: 0,
-      isPlaying: false,
-      speed: 3.0,
-      userInteracted: false,
-    },
-    mounted() {
-      fetch('https://superb-squirrel-a2242e.netlify.app/allsentences.json')
-        .then(res => res.json())
-        .then(data => {
-          this.sentences = data;
-        });
-
-      document.body.addEventListener('click', () => {
-        this.userInteracted = true;
-      }, { once: true });
-    },
-    methods: {
-      togglePlay() {
-        this.isPlaying = !this.isPlaying;
-        if (this.isPlaying) {
-          this.speakCurrent();
-        } else {
-          speechSynthesis.cancel();
-        }
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        sentences: [],
+        currentIndex: 0,
+        isPlaying: false,
+        speed: 3.0,
+        intervalId: null,
+        userInteracted: false,
       },
-      slower() {
-        if (this.speed < 10) {
-          this.speed += 0.5;
-        }
+      mounted() {
+        fetch('https://superb-squirrel-a2242e.netlify.app/allsentences.json')
+          .then(res => res.json())
+          .then(data => {
+            this.sentences = data;
+          });
+
+        document.body.addEventListener('click', () => {
+          this.userInteracted = true;
+        }, { once: true });
       },
-      faster() {
-        if (this.speed > 1) {
-          this.speed -= 0.5;
-        }
-      },
-      speakCurrent() {
-        if (!this.sentences.length || !this.userInteracted || !this.isPlaying) return;
-
-        if (this.currentIndex >= this.sentences.length) {
-          this.currentIndex = 0;
-        }
-
-        const sentence = this.sentences[this.currentIndex];
-        const utter = new SpeechSynthesisUtterance(sentence);
-        utter.lang = 'en-US';
-        utter.rate = 1.0;
-
-        utter.onend = () => {
+      methods: {
+        togglePlay() {
+          this.isPlaying = !this.isPlaying;
           if (this.isPlaying) {
-            setTimeout(() => {
-              this.currentIndex++;
-              this.speakCurrent();
-            }, this.speed * 1000);
+            this.startSpeaking();
+          } else {
+            clearInterval(this.intervalId);
           }
-        };
-
-        speechSynthesis.cancel();
-        speechSynthesis.speak(utter);
-
-        this.$nextTick(() => {
-          const container = this.$refs.scrollArea;
-          const currentEl = container.children[this.currentIndex];
-          if (currentEl) {
-            currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        },
+        speak(text) {
+          if ('speechSynthesis' in window && this.userInteracted) {
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = 1.0;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utter);
           }
-        });
+        },
+        startSpeaking() {
+          if (this.intervalId) clearInterval(this.intervalId);
+
+          this.intervalId = setInterval(() => {
+            if (this.currentIndex >= this.sentences.length) {
+              this.currentIndex = 0;
+            }
+
+            const sentence = this.sentences[this.currentIndex];
+            this.speak(sentence);
+
+            this.$nextTick(() => {
+              const el = this.$refs.scrollArea;
+              const current = el.children[this.currentIndex];
+              if (current) {
+                current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            });
+
+            this.currentIndex++;
+          }, this.speed * 1000);
+        },
+        slower() {
+          if (this.speed < 10) {
+            this.speed += 0.5;
+            this.restartIfPlaying();
+          }
+        },
+        faster() {
+          if (this.speed > 1) {
+            this.speed -= 0.5;
+            this.restartIfPlaying();
+          }
+        },
+        restartIfPlaying() {
+          if (this.isPlaying) {
+            clearInterval(this.intervalId);
+            this.startSpeaking();
+          }
+        }
       }
-    }
-  });
-</script>
+    });
+  </script>
 </body>
 </html>
