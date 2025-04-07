@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎤 Sentence Speaker</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .highlight {
+      background-color: rgba(99, 102, 241, 0.15);
+      border-left: 4px solid #6366f1;
+      padding-left: 1rem;
+    }
+    .speak-btn {
+      transition: all 0.2s ease;
+    }
+    .speak-btn:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+  <div id="app" class="max-w-3xl mx-auto py-10 px-4">
+    <div class="bg-white shadow-xl rounded-lg p-6">
+      <h1 class="text-3xl font-bold text-indigo-600 mb-4 text-center">📖 Sentence Speaker</h1>
+      <p class="text-gray-600 mb-6 text-center">Auto-scroll and speak sentences from JSON</p>
+
+      <div class="flex items-center justify-center mb-4 gap-4">
+        <button @click="togglePlay" class="speak-btn bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700">
+          <span v-if="!isPlaying">▶️ Start</span>
+          <span v-else>⏸️ Pause</span>
+        </button>
+        <div class="flex items-center gap-2">
+          <button @click="slower" class="text-indigo-600 font-bold text-lg">➖</button>
+          <span class="text-gray-700 font-medium">{{ speed.toFixed(1) }}s</span>
+          <button @click="faster" class="text-indigo-600 font-bold text-lg">➕</button>
+        </div>
+      </div>
+
+      <div class="h-64 overflow-y-auto border border-gray-200 rounded-md p-4 bg-gray-50" ref="scrollArea">
+        <div v-for="(sentence, index) in sentences" :key="index"
+             :class="{'highlight': currentIndex === index}"
+             class="text-lg mb-2">
+          {{ sentence }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        sentences: [],
+        currentIndex: 0,
+        isPlaying: false,
+        speed: 3.0,
+        intervalId: null,
+        userInteracted: false,
+      },
+      mounted() {
+        fetch('https://superb-squirrel-a2242e.netlify.app/allsentences.json') // Replace with your actual endpoint
+          .then(res => res.json())
+          .then(data => {
+            this.sentences = data;
+          });
+
+        document.body.addEventListener('click', () => {
+          this.userInteracted = true;
+        }, { once: true });
+      },
+      methods: {
+        togglePlay() {
+          this.isPlaying = !this.isPlaying;
+          if (this.isPlaying) {
+            this.startSpeaking();
+          } else {
+            clearInterval(this.intervalId);
+          }
+        },
+        speak(text) {
+          if ('speechSynthesis' in window && this.userInteracted) {
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = 1.0;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utter);
+          }
+        },
+        startSpeaking() {
+          this.intervalId = setInterval(() => {
+            if (this.currentIndex >= this.sentences.length) {
+              this.currentIndex = 0;
+            }
+            const sentence = this.sentences[this.currentIndex];
+            this.speak(sentence);
+
+            this.$nextTick(() => {
+              const el = this.$refs.scrollArea;
+              const current = el.children[this.currentIndex];
+              if (current) {
+                current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            });
+            this.currentIndex++;
+          }, this.speed * 1000);
+        },
+        slower() {
+          if (this.speed < 10) {
+            this.speed += 0.5;
+            if (this.isPlaying) {
+              clearInterval(this.intervalId);
+              this.startSpeaking();
+            }
+          }
+        },
+        faster() {
+          if (this.speed > 1) {
+            this.speed -= 0.5;
+            if (this.isPlaying) {
+              clearInterval(this.intervalId);
+              this.startSpeaking();
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
