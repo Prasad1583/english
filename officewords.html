@@ -43,7 +43,7 @@
       },
       async mounted() {
         // Replace this with your JSON file path or embed the object directly
-        const response = await fetch('https://superb-squirrel-a2242e.netlify.app/office-verbs.json'); // Or use embedded JSON here
+        const response = await fetch('https://superb-squirrel-a2242e.netlify.app/office-words.json'); // Or use embedded JSON here
         this.verbsData = await response.json();
       }
     }).mount('#app');
